@@ -1,14 +1,20 @@
-#pragma once
+﻿#pragma once
 
 
 RE::TESForm* Create(RE::StaticFunctionTag*, RE::TESForm* baseItem);
 
 RE::TESForm* CreateByType(RE::StaticFunctionTag*, uint32_t formType);
+
 RE::TESForm* GetOrCreateByLocalId(RE::StaticFunctionTag*, uint32_t localId, uint32_t formType);
+
 RE::TESForm* GetOrCreateByFormId(RE::StaticFunctionTag*, RE::TESForm* formIdSource, uint32_t formType);
+
 RE::TESForm* GetOrCreateByOwnerKey(RE::StaticFunctionTag*, RE::BSFixedString owner, RE::BSFixedString key, uint32_t formType);
+
 bool ReleaseByOwnerKey(RE::StaticFunctionTag*, RE::BSFixedString owner, RE::BSFixedString key);
+
 bool ReleaseByLocalId(RE::StaticFunctionTag*, uint32_t localId, RE::BSFixedString owner);
+
 uint32_t ReleaseOwner(RE::StaticFunctionTag*, RE::BSFixedString owner);
 
 
@@ -60,3 +66,5 @@ void SetSoulGemCurrentSoul(RE::StaticFunctionTag*, RE::TESSoulGem* soulGem, uint
 void LinkSoulGems(RE::StaticFunctionTag*, RE::TESSoulGem* empty, RE::TESSoulGem* filled);
 
 bool PapyrusFunctions(RE::BSScript::IVirtualMachine* vm);
+
+

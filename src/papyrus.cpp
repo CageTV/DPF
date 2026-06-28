@@ -1,4 +1,4 @@
-﻿#include "papyrus.h"
+#include "papyrus.h"
 #include "model.h"
 #include "Services.h"
 #include "form.h"
@@ -41,7 +41,7 @@ uint32_t ReleaseOwner(RE::StaticFunctionTag*, const RE::BSFixedString owner) {
 }
 
 void AddMagicEffect(RE::StaticFunctionTag*, RE::TESForm* item, RE::EffectSetting* effect, const float magnitude,
-    const uint32_t area, const uint32_t duration, const float cost) {
+                    const uint32_t area, const uint32_t duration, const float cost) {
     std::lock_guard lock(papyrusMutex);
     try {
         logger::trace("added");
@@ -61,8 +61,7 @@ void AddMagicEffect(RE::StaticFunctionTag*, RE::TESForm* item, RE::EffectSetting
             newEffect->effectItem.duration = duration;
             magicItem->effects.push_back(newEffect);
         }
-    }
-    catch (const std::exception&) {
+    } catch (const std::exception&) {
     }
 }
 
@@ -89,8 +88,7 @@ void CopyMagicEffects(RE::StaticFunctionTag*, RE::TESForm* from, RE::TESForm* to
                 magicItemTo->effects.push_back(newEffect);
             }
         }
-    }
-    catch (const std::exception&) {
+    } catch (const std::exception&) {
     }
 }
 
@@ -108,8 +106,7 @@ void ClearMagicEffects(RE::StaticFunctionTag*, RE::TESForm* item) {
         if (magicItem) {
             magicItem->effects.clear();
         }
-    }
-    catch (const std::exception&) {
+    } catch (const std::exception&) {
     }
 }
 
@@ -126,7 +123,7 @@ void CopyAppearance(RE::StaticFunctionTag*, RE::TESForm* source, RE::TESForm* ta
                 return false;
             }
             return true;
-            });
+        });
 
         EachFormRef([&](FormRecord* item) {
             if (!item->deleted && item->Match(target)) {
@@ -134,11 +131,10 @@ void CopyAppearance(RE::StaticFunctionTag*, RE::TESForm* source, RE::TESForm* ta
                 return false;
             }
             return true;
-            });
+        });
 
         copyAppearence(source, target);
-    }
-    catch (const std::exception&) {
+    } catch (const std::exception&) {
         logger::error("error copying model");
     }
 }
@@ -151,8 +147,7 @@ void SetSpellTomeSpell(RE::StaticFunctionTag*, RE::TESObjectBOOK* spellTome, RE:
         }
         spellTome->data.flags = RE::OBJ_BOOK::Flag::kTeachesSpell;
         spellTome->data.teaches.spell = spell;
-    }
-    catch (const std::exception&) {
+    } catch (const std::exception&) {
         logger::error("add spell");
     }
 }
@@ -166,8 +161,7 @@ void SetSpellAutoCalculate(RE::StaticFunctionTag*, RE::SpellItem* spell, const b
 
     if (!autoCalculate) {
         spell->data.flags |= RE::SpellItem::SpellFlag::kCostOverride;
-    }
-    else {
+    } else {
         spell->data.flags &= static_cast<RE::SpellItem::SpellFlag>(~static_cast<uint32_t>(
             RE::SpellItem::SpellFlag::kCostOverride));
     }
@@ -232,8 +226,7 @@ void SetEnchantmentAutoCalculate(RE::StaticFunctionTag*, RE::EnchantmentItem* sp
 
     if (!autoCalculate) {
         spell->data.flags |= RE::EnchantmentItem::EnchantmentFlag::kCostOverride;
-    }
-    else {
+    } else {
         spell->data.flags &=
             static_cast<RE::EnchantmentItem::EnchantmentFlag>(~static_cast<uint32_t>(
                 RE::EnchantmentItem::EnchantmentFlag::kCostOverride));
@@ -358,3 +351,5 @@ bool PapyrusFunctions(RE::BSScript::IVirtualMachine* vm) {
 
     return true;
 }
+
+

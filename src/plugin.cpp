@@ -1,4 +1,4 @@
-﻿#include "Services.h"
+#include "Services.h"
 #include "logger.h"
 #include "model.h"
 #include "papyrus.h"
@@ -63,7 +63,7 @@ namespace {
     }
 }
 
-SKSEPluginLoad(const SKSE::LoadInterface* skse) {
+SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     SetupLog();
     logger::info("Plugin loaded");
 

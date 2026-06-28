@@ -1,9 +1,8 @@
-#pragma once
+﻿#pragma once
 #include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -29,7 +28,6 @@ inline std::unordered_set<uint32_t> reservedDynamicLocalIds;
 inline std::unordered_map<uint32_t, DynamicSlot> dynamicSlots;
 inline std::unordered_map<std::string, uint32_t> dynamicOwnerKeyIndex;
 
-
 void AddFormData(FormRecord* item);
 
 void AddFormRef(FormRecord* item);
@@ -37,7 +35,6 @@ void AddFormRef(FormRecord* item);
 void EachFormData(const std::function<bool(FormRecord*)>& iteration);
 
 void EachFormRef(const std::function<bool(FormRecord*)>& iteration);
-
 
 bool IsDynamicFormID(RE::FormID formId);
 
@@ -50,12 +47,23 @@ void ReserveDynamicLocalID(uint32_t localId);
 void ReserveDynamicFormID(RE::FormID formId);
 
 std::string NormalizeOwnerKeyPart(const char* value);
+
 std::string MakeOwnerKey(std::string_view owner, std::string_view key);
+
 bool RegisterDynamicSlot(uint32_t localId, RE::FormType formType, std::string owner = {}, std::string key = {});
+
 std::optional<DynamicSlot> GetRegisteredDynamicSlot(uint32_t localId);
+
+std::optional<RE::FormType> GetRegisteredDynamicSlotType(uint32_t localId);
+
 std::optional<uint32_t> FindDynamicSlotByOwnerKey(std::string_view owner, std::string_view key);
+
+bool IsDynamicLocalIDRegistered(uint32_t localId);
+
 bool ReleaseDynamicSlot(uint32_t localId, std::string_view owner);
+
 bool ReleaseDynamicSlotByOwnerKey(std::string_view owner, std::string_view key);
+
 uint32_t ReleaseDynamicSlotsByOwner(std::string_view owner);
 
 RE::FormID AllocateDynamicFormID();
