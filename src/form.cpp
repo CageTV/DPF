@@ -196,27 +196,29 @@ namespace {
         return found;
     }
 
-    RE::TESForm* CreateRegisteredForm(const uint32_t localId, const RE::FormType formType, RE::TESForm* baseItem,
-        std::string owner = {}, std::string key = {}) {
-        if (!espFound || localId == 0 || formType == RE::FormType::None) {
+    RE::TESForm* CreateRegisteredForm(const uint32_t pluginNumber, const uint32_t localId,
+        const RE::FormType formType, RE::TESForm* baseItem, std::string owner = {}, std::string key = {}) {
+        if (!espFound || !GetDynamicPlugin(pluginNumber) || localId == 0 || formType == RE::FormType::None) {
+            logger::error("Cannot create DPF slot {}:{:06X}; its plugin is not loaded or the request is invalid",
+                pluginNumber, localId);
             return nullptr;
         }
 
-        const auto existingSlot = GetRegisteredDynamicSlot(localId);
+        const auto existingSlot = GetRegisteredDynamicSlot(pluginNumber, localId);
         if (existingSlot.has_value()) {
             if (existingSlot->formType != formType) {
-                logger::error("Slot {:06X} is registered as type {}, requested {}", localId,
+                logger::error("Slot {}:{:06X} is registered as type {}, requested {}", pluginNumber, localId,
                     static_cast<uint32_t>(existingSlot->formType), static_cast<uint32_t>(formType));
                 return nullptr;
             }
             if ((!owner.empty() || !key.empty()) && (existingSlot->owner != owner || existingSlot->key != key)) {
-                logger::error("Slot {:06X} is owned by '{}'/'{}', requested '{}'/'{}'", localId,
+                logger::error("Slot {}:{:06X} is owned by '{}'/'{}', requested '{}'/'{}'", pluginNumber, localId,
                     existingSlot->owner, existingSlot->key, owner, key);
                 return nullptr;
             }
         }
 
-        const auto formId = MakeDynamicFormID(localId);
+        const auto formId = MakeDynamicFormID(pluginNumber, localId);
         if (auto* existingForm = RE::TESForm::LookupByID(formId)) {
             if (existingForm->GetFormType() != formType) {
                 logger::error("FormID {:08X} exists as type {}, requested {}", formId,
@@ -224,7 +226,7 @@ namespace {
                 return nullptr;
             }
             EnsureFormInDataHandler(existingForm);
-            if (!RegisterDynamicSlot(localId, formType, std::move(owner), std::move(key))) {
+            if (!RegisterDynamicSlot(pluginNumber, localId, formType, std::move(owner), std::move(key))) {
                 return nullptr;
             }
             if (!FindCreatedRecord(formId)) {
@@ -236,7 +238,7 @@ namespace {
             return existingForm;
         }
 
-        if (!RegisterDynamicSlot(localId, formType, std::move(owner), std::move(key))) {
+        if (!RegisterDynamicSlot(pluginNumber, localId, formType, std::move(owner), std::move(key))) {
             return nullptr;
         }
 
@@ -263,12 +265,12 @@ RE::TESForm* AddForm(RE::TESForm* baseItem) {
         return nullptr;
     }
 
-    const auto formId = AllocateDynamicFormID();
-    if (formId == 0) {
+    const auto address = AllocateDynamicSlot();
+    if (!address.has_value()) {
         return nullptr;
     }
 
-    return CreateRegisteredForm(ToDynamicLocalID(formId), baseItem->GetFormType(), baseItem);
+    return CreateRegisteredForm(address->pluginNumber, address->localId, baseItem->GetFormType(), baseItem);
 }
 
 RE::TESForm* AddFormByType(const RE::FormType formType) {
@@ -277,28 +279,33 @@ RE::TESForm* AddFormByType(const RE::FormType formType) {
         return nullptr;
     }
 
-    const auto formId = AllocateDynamicFormID();
-    if (formId == 0) {
+    const auto address = AllocateDynamicSlot();
+    if (!address.has_value()) {
         return nullptr;
     }
 
-    return CreateRegisteredForm(ToDynamicLocalID(formId), formType, nullptr);
+    return CreateRegisteredForm(address->pluginNumber, address->localId, formType, nullptr);
 }
 
-RE::TESForm* GetOrCreateFormByLocalId(const uint32_t localId, const RE::FormType formType) {
-    return CreateRegisteredForm(localId & 0x00ffffff, formType, nullptr);
+RE::TESForm* GetOrCreateFormByPluginLocalId(const uint32_t pluginNumber, const uint32_t localId,
+    const RE::FormType formType) {
+    return CreateRegisteredForm(pluginNumber, localId & 0x00ffffff, formType, nullptr);
 }
 
 RE::TESForm* GetOrCreateFormByFormId(const RE::FormID formId, const RE::FormType formType) {
-    if (!IsDynamicFormID(formId)) {
-        logger::error("FormID {:08X} does not belong to DPF.esp", formId);
+    const auto pluginNumber = GetDynamicPluginNumber(formId);
+    if (!pluginNumber.has_value()) {
+        logger::error("FormID {:08X} does not belong to a loaded DPF plugin", formId);
         return nullptr;
     }
-    return GetOrCreateFormByLocalId(ToDynamicLocalID(formId), formType);
+    return GetOrCreateFormByPluginLocalId(pluginNumber.value(), ToDynamicLocalID(formId), formType);
 }
 
 RE::TESForm* GetOrCreateFormByOwnerKey(const char* ownerRaw, const char* keyRaw, const RE::FormType formType,
-    uint32_t* localIdOut, bool* existedOut) {
+    uint32_t* pluginNumberOut, uint32_t* localIdOut, bool* existedOut) {
+    if (pluginNumberOut) {
+        *pluginNumberOut = 0;
+    }
     if (localIdOut) {
         *localIdOut = 0;
     }
@@ -313,29 +320,35 @@ RE::TESForm* GetOrCreateFormByOwnerKey(const char* ownerRaw, const char* keyRaw,
         return nullptr;
     }
 
-    if (const auto existingLocalId = FindDynamicSlotByOwnerKey(owner, key)) {
+    if (const auto existingAddress = FindDynamicSlotByOwnerKey(owner, key)) {
+        if (pluginNumberOut) {
+            *pluginNumberOut = existingAddress->pluginNumber;
+        }
         if (localIdOut) {
-            *localIdOut = existingLocalId.value();
+            *localIdOut = existingAddress->localId;
         }
         if (existedOut) {
             *existedOut = true;
         }
-        return CreateRegisteredForm(existingLocalId.value(), formType, nullptr, owner, key);
+        return CreateRegisteredForm(existingAddress->pluginNumber, existingAddress->localId, formType, nullptr,
+            owner, key);
     }
 
-    const auto formId = AllocateDynamicFormID();
-    if (formId == 0) {
+    const auto address = AllocateDynamicSlot();
+    if (!address.has_value()) {
         return nullptr;
     }
 
-    const auto localId = ToDynamicLocalID(formId);
-    auto* form = CreateRegisteredForm(localId, formType, nullptr, owner, key);
+    auto* form = CreateRegisteredForm(address->pluginNumber, address->localId, formType, nullptr, owner, key);
     if (!form) {
         return nullptr;
     }
 
+    if (pluginNumberOut) {
+        *pluginNumberOut = address->pluginNumber;
+    }
     if (localIdOut) {
-        *localIdOut = localId;
+        *localIdOut = address->localId;
     }
     return form;
 }
@@ -348,8 +361,8 @@ bool ReleaseFormByOwnerKey(const char* ownerRaw, const char* keyRaw) {
     return released;
 }
 
-bool ReleaseFormByLocalId(const uint32_t localId, const char* ownerRaw) {
-    const auto released = ReleaseDynamicSlot(localId, NormalizeOwnerKeyPart(ownerRaw));
+bool ReleaseFormByPluginLocalId(const uint32_t pluginNumber, const uint32_t localId, const char* ownerRaw) {
+    const auto released = ReleaseDynamicSlot(pluginNumber, localId, NormalizeOwnerKeyPart(ownerRaw));
     if (released) {
         SaveGlobalRegistry();
     }

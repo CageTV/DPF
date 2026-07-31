@@ -8,7 +8,8 @@
 
 namespace {
     constexpr uint32_t kRegistryMagic = 0x44504643;  // DPFC
-    constexpr uint8_t kRegistrySchemaVersion = 2;
+    constexpr uint8_t kRegistrySchemaVersion = 3;
+    constexpr uint8_t kPreviousRegistrySchemaVersion = 2;
     std::mutex registryMutex;
 
     template <typename T>
@@ -58,26 +59,34 @@ namespace {
     std::vector<DynamicSlot> GetSortedSlots() {
         std::vector<DynamicSlot> sorted;
         sorted.reserve(dynamicSlots.size());
-        for (const auto& [localId, slot] : dynamicSlots) {
+        for (const auto& [slotId, slot] : dynamicSlots) {
             sorted.push_back(slot);
         }
         std::ranges::sort(sorted, [](const auto& lhs, const auto& rhs) {
+            if (lhs.pluginNumber != rhs.pluginNumber) {
+                return lhs.pluginNumber < rhs.pluginNumber;
+            }
             return lhs.localId < rhs.localId;
             });
         return sorted;
     }
 
-    void RecalculateNextDynamicLocalId() {
-        uint32_t localId = firstDynamicLocalId;
-        while (localId < 0x00ffffff) {
-            if (!reservedDynamicLocalIds.contains(localId) && !dynamicSlots.contains(localId)) {
-                nextDynamicLocalId = localId;
-                return;
+    void RecalculateNextDynamicLocalIds() {
+        for (auto& plugin : dynamicPlugins) {
+            uint32_t localId = firstDynamicLocalId;
+            while (localId <= 0x00ffffff) {
+                const auto slotId = MakeDynamicSlotId(plugin.number, localId);
+                if (!reservedDynamicSlots.contains(slotId) && !dynamicSlots.contains(slotId)) {
+                    plugin.nextLocalId = localId;
+                    break;
+                }
+                ++localId;
             }
-            ++localId;
-        }
 
-        nextDynamicLocalId = 0x00ffffff;
+            if (localId > 0x00ffffff) {
+                plugin.nextLocalId = 0x01000000;
+            }
+        }
     }
 
     template <typename T>
@@ -107,6 +116,7 @@ namespace {
 
         WriteVarUInt(serializer, static_cast<uint32_t>(sorted.size()));
         for (const auto& slot : sorted) {
+            WriteVarUInt(serializer, slot.pluginNumber);
             WriteVarUInt(serializer, slot.localId);
             WriteVarUInt(serializer, static_cast<uint32_t>(slot.formType));
             WriteVarUInt(serializer, slot.owner.empty() ? 0 : ownerIndexes[slot.owner] + 1);
@@ -115,17 +125,23 @@ namespace {
     }
 
     template <typename T>
-    bool RestoreRegistry(Serializer<T>* serializer) {
+    bool RestoreRegistry(Serializer<T>* serializer, bool& rewriteCache) {
         const auto magic = serializer->template Read<uint32_t>();
         const auto version = serializer->template Read<uint8_t>();
-        if (magic != kRegistryMagic || version != kRegistrySchemaVersion) {
+        if (magic != kRegistryMagic ||
+            (version != kRegistrySchemaVersion && version != kPreviousRegistrySchemaVersion)) {
             logger::warn("DPF registry binary cache is missing or unsupported; starting with empty schema {} registry", kRegistrySchemaVersion);
             ResetDynamicState();
-            return SaveGlobalRegistry();
+            rewriteCache = true;
+            return true;
         }
 
         ResetDynamicState();
-        dynamicPluginName = ReadCompactString(serializer);
+        const auto cachedPrimaryPluginName = ReadCompactString(serializer);
+        if (cachedPrimaryPluginName != dynamicPluginName) {
+            logger::warn("DPF registry was created for '{}'; treating its primary slots as '{}'",
+                cachedPrimaryPluginName, dynamicPluginName);
+        }
 
         std::vector<std::string> owners;
         const auto ownerCount = ReadVarUInt(serializer);
@@ -136,6 +152,7 @@ namespace {
 
         const auto slotCount = ReadVarUInt(serializer);
         for (uint32_t i = 0; i < slotCount; ++i) {
+            const auto pluginNumber = version >= kRegistrySchemaVersion ? ReadVarUInt(serializer) : 1;
             const auto localId = ReadVarUInt(serializer);
             const auto formType = static_cast<RE::FormType>(ReadVarUInt(serializer));
             const auto ownerIndex = ReadVarUInt(serializer);
@@ -145,13 +162,14 @@ namespace {
             }
             const auto key = ReadCompactString(serializer);
 
-            if (!RegisterDynamicSlot(localId, formType, owner, key)) {
-                logger::warn("Ignoring invalid DPF registry slot {:06X}", localId);
+            if (!RegisterDynamicSlot(pluginNumber, localId, formType, owner, key)) {
+                logger::warn("Ignoring invalid DPF registry slot {}:{:06X}", pluginNumber, localId);
             }
         }
 
-        RecalculateNextDynamicLocalId();
-        logger::info("Loaded DPF global registry with {} slots", dynamicSlots.size());
+        RecalculateNextDynamicLocalIds();
+        rewriteCache = version != kRegistrySchemaVersion;
+        logger::info("Loaded DPF global registry schema {} with {} slots", version, dynamicSlots.size());
         return true;
     }
 }
@@ -169,13 +187,26 @@ bool LoadGlobalRegistry() {
         return SaveGlobalRegistry();
     }
 
-    FileReader fileReader(path, std::ios::in | std::ios::binary);
-    if (!fileReader.IsOpen()) {
-        logger::error("Could not open DPF global registry at {}", path);
-        return false;
+    bool rewriteCache = false;
+    bool restored = false;
+    {
+        FileReader fileReader(path, std::ios::in | std::ios::binary);
+        if (!fileReader.IsOpen()) {
+            logger::error("Could not open DPF global registry at {}", path);
+            return false;
+        }
+
+        restored = RestoreRegistry(&fileReader, rewriteCache);
     }
 
-    return RestoreRegistry(&fileReader);
+    if (!restored) {
+        return false;
+    }
+    if (rewriteCache) {
+        logger::info("Writing DPF global registry using schema {}", kRegistrySchemaVersion);
+        return SaveGlobalRegistry();
+    }
+    return true;
 }
 
 bool SaveGlobalRegistry() {

@@ -13,8 +13,9 @@ RE::TESForm* CreateByType(RE::StaticFunctionTag*, const uint32_t formType) {
     return Services::CreateByType(formType);
 }
 
-RE::TESForm* GetOrCreateByLocalId(RE::StaticFunctionTag*, const uint32_t localId, const uint32_t formType) {
-    return Services::GetOrCreateByLocalId(localId, formType);
+RE::TESForm* GetOrCreateByPluginLocalId(RE::StaticFunctionTag*, const uint32_t pluginNumber,
+    const uint32_t localId, const uint32_t formType) {
+    return Services::GetOrCreateByPluginLocalId(pluginNumber, localId, formType);
 }
 
 RE::TESForm* GetOrCreateByFormId(RE::StaticFunctionTag*, RE::TESForm* formIdSource, const uint32_t formType) {
@@ -25,15 +26,25 @@ RE::TESForm* GetOrCreateByFormId(RE::StaticFunctionTag*, RE::TESForm* formIdSour
 }
 
 RE::TESForm* GetOrCreateByOwnerKey(RE::StaticFunctionTag*, const RE::BSFixedString owner, const RE::BSFixedString key, const uint32_t formType) {
-    return Services::GetOrCreateByOwnerKey(owner.c_str(), key.c_str(), formType, nullptr, nullptr);
+    return Services::GetOrCreateByOwnerKey(owner.c_str(), key.c_str(), formType, nullptr, nullptr, nullptr);
+}
+
+uint32_t GetDynamicPluginNumberPapyrus(RE::StaticFunctionTag*, RE::TESForm* form) {
+    return form ? Services::GetPluginNumberForFormId(form->GetFormID()) : 0;
+}
+
+RE::BSFixedString GetDynamicPluginNamePapyrus(RE::StaticFunctionTag*, const uint32_t pluginNumber) {
+    const auto pluginName = FormatDynamicPluginName(pluginNumber);
+    return RE::BSFixedString(pluginName.c_str());
 }
 
 bool ReleaseByOwnerKey(RE::StaticFunctionTag*, const RE::BSFixedString owner, const RE::BSFixedString key) {
     return Services::ReleaseByOwnerKey(owner.c_str(), key.c_str());
 }
 
-bool ReleaseByLocalId(RE::StaticFunctionTag*, const uint32_t localId, const RE::BSFixedString owner) {
-    return Services::ReleaseByLocalId(localId, owner.c_str());
+bool ReleaseByPluginLocalId(RE::StaticFunctionTag*, const uint32_t pluginNumber, const uint32_t localId,
+    const RE::BSFixedString owner) {
+    return Services::ReleaseByPluginLocalId(pluginNumber, localId, owner.c_str());
 }
 
 uint32_t ReleaseOwner(RE::StaticFunctionTag*, const RE::BSFixedString owner) {
@@ -318,11 +329,13 @@ void LinkSoulGems(RE::StaticFunctionTag*, RE::TESSoulGem* empty, RE::TESSoulGem*
 bool PapyrusFunctions(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("Create", "DynamicPersistentForms", Create);
     vm->RegisterFunction("CreateByType", "DynamicPersistentForms", CreateByType);
-    vm->RegisterFunction("GetOrCreateByLocalId", "DynamicPersistentForms", GetOrCreateByLocalId);
+    vm->RegisterFunction("GetOrCreateByPluginLocalId", "DynamicPersistentForms", GetOrCreateByPluginLocalId);
     vm->RegisterFunction("GetOrCreateByFormId", "DynamicPersistentForms", GetOrCreateByFormId);
     vm->RegisterFunction("GetOrCreateByOwnerKey", "DynamicPersistentForms", GetOrCreateByOwnerKey);
+    vm->RegisterFunction("GetDynamicPluginNumber", "DynamicPersistentForms", GetDynamicPluginNumberPapyrus);
+    vm->RegisterFunction("GetDynamicPluginName", "DynamicPersistentForms", GetDynamicPluginNamePapyrus);
     vm->RegisterFunction("ReleaseByOwnerKey", "DynamicPersistentForms", ReleaseByOwnerKey);
-    vm->RegisterFunction("ReleaseByLocalId", "DynamicPersistentForms", ReleaseByLocalId);
+    vm->RegisterFunction("ReleaseByPluginLocalId", "DynamicPersistentForms", ReleaseByPluginLocalId);
     vm->RegisterFunction("ReleaseOwner", "DynamicPersistentForms", ReleaseOwner);
     vm->RegisterFunction("AddMagicEffect", "DynamicPersistentForms", AddMagicEffect);
     vm->RegisterFunction("ClearMagicEffects", "DynamicPersistentForms", ClearMagicEffects);

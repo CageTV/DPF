@@ -30,10 +30,11 @@ RE::TESForm* Services::CreateByType(const uint32_t formType) {
     }
 }
 
-RE::TESForm* Services::GetOrCreateByLocalId(const uint32_t localId, const uint32_t formType) {
+RE::TESForm* Services::GetOrCreateByPluginLocalId(const uint32_t pluginNumber, const uint32_t localId,
+    const uint32_t formType) {
     std::lock_guard lock(serviceMutex);
     try {
-        return GetOrCreateFormByLocalId(localId, static_cast<RE::FormType>(formType));
+        return GetOrCreateFormByPluginLocalId(pluginNumber, localId, static_cast<RE::FormType>(formType));
     } catch (const std::exception&) {
         return nullptr;
     }
@@ -49,11 +50,15 @@ RE::TESForm* Services::GetOrCreateByFormId(const RE::FormID formId, const uint32
 }
 
 RE::TESForm* Services::GetOrCreateByOwnerKey(const char* owner, const char* key, const uint32_t formType,
-    uint32_t* localId, bool* existed) {
+    uint32_t* pluginNumber, uint32_t* localId, bool* existed) {
     std::lock_guard lock(serviceMutex);
     try {
-        return GetOrCreateFormByOwnerKey(owner, key, static_cast<RE::FormType>(formType), localId, existed);
+        return GetOrCreateFormByOwnerKey(owner, key, static_cast<RE::FormType>(formType), pluginNumber, localId,
+            existed);
     } catch (const std::exception&) {
+        if (pluginNumber) {
+            *pluginNumber = 0;
+        }
         if (localId) {
             *localId = 0;
         }
@@ -62,6 +67,11 @@ RE::TESForm* Services::GetOrCreateByOwnerKey(const char* owner, const char* key,
         }
         return nullptr;
     }
+}
+
+uint32_t Services::GetPluginNumberForFormId(const RE::FormID formId) {
+    std::lock_guard lock(serviceMutex);
+    return GetDynamicPluginNumber(formId).value_or(0);
 }
 
 bool Services::ReleaseByOwnerKey(const char* owner, const char* key) {
@@ -73,10 +83,10 @@ bool Services::ReleaseByOwnerKey(const char* owner, const char* key) {
     }
 }
 
-bool Services::ReleaseByLocalId(const uint32_t localId, const char* owner) {
+bool Services::ReleaseByPluginLocalId(const uint32_t pluginNumber, const uint32_t localId, const char* owner) {
     std::lock_guard lock(serviceMutex);
     try {
-        return ReleaseFormByLocalId(localId, owner);
+        return ReleaseFormByPluginLocalId(pluginNumber, localId, owner);
     } catch (const std::exception&) {
         return false;
     }

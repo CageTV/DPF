@@ -6,11 +6,13 @@ Form function Create(Form item) global native
 ; Creates a new empty form of the requested FormType and lets DPF own its persistent FormID slot.
 Form function CreateByType(int formType) global native
 
-Form function GetOrCreateByLocalId(int localId, int formType) global native
+Form function GetOrCreateByPluginLocalId(int pluginNumber, int localId, int formType) global native
 Form function GetOrCreateByFormId(Form formIdSource, int formType) global native
 Form function GetOrCreateByOwnerKey(String owner, String key, int formType) global native
+int function GetDynamicPluginNumber(Form item) global native
+String function GetDynamicPluginName(int pluginNumber) global native
 bool function ReleaseByOwnerKey(String owner, String key) global native
-bool function ReleaseByLocalId(int localId, String owner) global native
+bool function ReleaseByPluginLocalId(int pluginNumber, int localId, String owner) global native
 int function ReleaseOwner(String owner) global native
 
 function AddMagicEffect(Form item, MagicEffect effect, float magnitude, int area, int duration, float cost) global native

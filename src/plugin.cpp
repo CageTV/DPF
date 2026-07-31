@@ -23,8 +23,9 @@ public:
         return Services::CreateByType(formType);
     }
 
-    RE::TESForm* GetOrCreateByLocalId(const uint32_t localId, const uint32_t formType) override {
-        return Services::GetOrCreateByLocalId(localId, formType);
+    RE::TESForm* GetOrCreateByPluginLocalId(const uint32_t pluginNumber, const uint32_t localId,
+        const uint32_t formType) override {
+        return Services::GetOrCreateByPluginLocalId(pluginNumber, localId, formType);
     }
 
     RE::TESForm* GetOrCreateByFormId(const RE::FormID formId, const uint32_t formType) override {
@@ -32,16 +33,20 @@ public:
     }
 
     RE::TESForm* GetOrCreateByOwnerKey(const char* owner, const char* key, const uint32_t formType,
-        uint32_t* localId, bool* existed) override {
-        return Services::GetOrCreateByOwnerKey(owner, key, formType, localId, existed);
+        uint32_t* pluginNumber, uint32_t* localId, bool* existed) override {
+        return Services::GetOrCreateByOwnerKey(owner, key, formType, pluginNumber, localId, existed);
+    }
+
+    uint32_t GetPluginNumberForFormId(const RE::FormID formId) const override {
+        return Services::GetPluginNumberForFormId(formId);
     }
 
     bool ReleaseByOwnerKey(const char* owner, const char* key) override {
         return Services::ReleaseByOwnerKey(owner, key);
     }
 
-    bool ReleaseByLocalId(const uint32_t localId, const char* owner) override {
-        return Services::ReleaseByLocalId(localId, owner);
+    bool ReleaseByPluginLocalId(const uint32_t pluginNumber, const uint32_t localId, const char* owner) override {
+        return Services::ReleaseByPluginLocalId(pluginNumber, localId, owner);
     }
 
     uint32_t ReleaseOwner(const char* owner) override {
@@ -73,5 +78,3 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
 
     return true;
 }
-
-
