@@ -1,4 +1,4 @@
-DPF (Dynamic Persistent Forms REthinked), CommonLibSSE-NG port for Skyrim 1.5.97 to 1.6.1170 and 1.7.x (SE and AE).
+DPF (Dynamic Persistent Forms REthinked), CommonLibSSE-NG port for Skyrim 1.6.1170 and newer (AE, including 1.7.x).
 
 Original work: Thiago e Viny (https://github.com/vinymayan/DPF), GPL-3.0. This fork changes only the build (ng.cmake, CommonLibSSE-NG
 instead of CommonLibSSE with fixed offsets) so the plugin loads on 1.7.104. Licensed under GPL-3.0, see LICENSE.
